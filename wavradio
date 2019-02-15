@@ -5,9 +5,10 @@ import threading
 import time
 
 CHUNK=3
+CHUNKSIZE=400000
 
 def streamtoclient(file,offset,socket,stop_event):
-	## Send 190KB of file for every second of music
+	## Send CHUNKSIZE bytes of file for every second of music
 	filelen=len(file)
 	## Send header
 	try:
@@ -18,9 +19,9 @@ def streamtoclient(file,offset,socket,stop_event):
 
 	while not stop_event.is_set():
 		try:
-			socket.sendall(file[offset:offset+CHUNK*190000])
+			socket.sendall(file[offset:offset+CHUNK*CHUNKSIZE])
 
-			offset=offset+CHUNK*190000
+			offset=offset+CHUNK*CHUNKSIZE
 
 			if offset > filelen:
 				offset = 0
@@ -65,14 +66,14 @@ def main():
 
 	music = f.read()
 	f.close()
-	ofs=0-CHUNK*190000
+	ofs=0-CHUNK*CHUNKSIZE
 	filelen=len(music)
 
 	## Listen for connections and start thread for each client
 	threads=list()
 	stop_event=threading.Event()
 	while 1:
-		ofs=(ofs+CHUNK*190000)%filelen
+		ofs=(ofs+CHUNK*CHUNKSIZE)%filelen
 		try:
 			client,addr = s.accept()
 
