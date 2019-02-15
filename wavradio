@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+import socket
+import argparse
+import threading
+import time
+
+CHUNK=3
+
+def streamtoclient(file,offset,socket,stop_event):
+	## Send 190KB of file for every second of music
+	filelen=len(file)
+	## Send header
+	try:
+		socket.sendall(file[:50])
+	except:
+		socket.close()
+		return
+
+	while not stop_event.is_set():
+		try:
+			socket.sendall(file[offset:offset+CHUNK*190000])
+
+			offset=offset+CHUNK*190000
+
+			if offset > filelen:
+				offset = 0
+			else:
+				time.sleep(CHUNK)
+		except:
+			socket.close()
+			return
+
+	socket.close()
+	return
+
+def main():
+	parser = argparse.ArgumentParser(description="Simple TCP server for delivering wav files")
+	parser.add_argument("--version", dest="version", help="print version information and exit", action="store_true")
+	parser.add_argument("-f","--file",metavar="FILE",dest="file",help="wav file to read from", default="radio.wav")
+	parser.add_argument("-p","--port",metavar="PORT",type=int,dest="port",help="port to listen on", default="5145")
+	parser.add_argument("--address",metavar="ADDRESS",dest="address",help="IP address to bind to", default="127.0.0.1")
+	args = parser.parse_args()
+
+	## Version argument
+	if args.version:
+		print("wavradio 0.1.0")
+		print("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>")
+		print("This is free software: you are free to change and redistribute it.")
+		print("There is NO WARRANTY, to the extent permitted by law.")
+		exit()
+
+	## Bind to IP/port and listen
+	s = socket.socket()
+	s.settimeout(CHUNK)
+	s.bind((args.address,args.port))
+	s.listen()
+
+	## Load the music from file
+	try:
+		f = open(args.file,'rb')
+	except:
+		parser.print_help()
+		print("File not specificed")
+		exit()
+
+	music = f.read()
+	f.close()
+	ofs=0-CHUNK*190000
+	filelen=len(music)
+
+	## Listen for connections and start thread for each client
+	threads=list()
+	stop_event=threading.Event()
+	while 1:
+		ofs=(ofs+CHUNK*190000)%filelen
+		try:
+			client,addr = s.accept()
+
+			thread=threading.Thread(target=streamtoclient,args=(music,ofs,client,stop_event))
+			threads.append(thread)
+			thread.daemon=True
+			thread.start()
+
+		except KeyboardInterrupt:
+			for thread in threads:
+				stop_event.set()
+				thread.join(3)
+			s.close()
+			exit()
+		except:
+			pass
+
+if __name__ == "__main__":
+	main()
