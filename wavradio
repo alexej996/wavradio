@@ -5,27 +5,31 @@ import threading
 import time
 
 CHUNK=3
+PRESEND=10
 
 def streamtoclient(file,offset,socket,stop_event):
 	## Send bps bytes of file for every second of music
 	filelen=len(file)
 	## Send header
-	header=file[:file.find(b'data')+4]
+	hp=file.find(b'data')+4
+	header=file[:hp]
 	bps=int.from_bytes(file[28:31],'little')
 	try:
 		socket.sendall(header)
+		socket.sendall(file[offset:offset+PRESEND*CHUNK*bps])
 	except:
 		socket.close()
 		return
 
 	while not stop_event.is_set():
 		try:
-			socket.sendall(file[offset:offset+CHUNK*bps])
+			socket.sendall(file[offset+PRESEND*CHUNK*bps:offset+(PRESEND+1)*CHUNK*bps])
 
 			offset=offset+CHUNK*bps
 
 			if offset > filelen:
-				offset = 0
+				offset = hp
+				socket.sendall(file[offset:offset+PRESEND*CHUNK*bps])
 			else:
 				time.sleep(CHUNK)
 		except:
@@ -67,15 +71,15 @@ def main():
 
 	music = f.read()
 	f.close()
+	hp=music.find(b'data')+4
 	bps=int.from_bytes(music[28:31],'little')
-	ofs=0-CHUNK*bps
+	ofs=hp
 	filelen=len(music)
 
 	## Listen for connections and start thread for each client
 	threads=list()
 	stop_event=threading.Event()
 	while 1:
-		ofs=(ofs+CHUNK*bps)%filelen
 		try:
 			client,addr = s.accept()
 
@@ -85,6 +89,8 @@ def main():
 			thread.daemon=True
 			thread.start()
 
+			ofs=(ofs+CHUNK*bps)%filelen
+
 		except KeyboardInterrupt:
 			for thread in threads:
 				stop_event.set()
@@ -92,6 +98,7 @@ def main():
 			s.close()
 			exit()
 		except:
+			ofs=(ofs+CHUNK*bps)%filelen
 			pass
 
 if __name__ == "__main__":
