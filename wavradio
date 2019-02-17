@@ -67,6 +67,7 @@ def main():
 
 	music = f.read()
 	f.close()
+	bps=int.from_bytes(music[29:32],'little')
 	ofs=0-CHUNK*bps
 	filelen=len(music)
 
