@@ -11,7 +11,7 @@ def streamtoclient(file,offset,socket,stop_event):
 	filelen=len(file)
 	## Send header
 	header=file[:file.find(b'data')+4]
-	bps=int.from_bytes(file[29:32],'little')
+	bps=int.from_bytes(file[28:31],'little')
 	try:
 		socket.sendall(header)
 	except:
@@ -67,7 +67,7 @@ def main():
 
 	music = f.read()
 	f.close()
-	bps=int.from_bytes(music[29:32],'little')
+	bps=int.from_bytes(music[28:31],'little')
 	ofs=0-CHUNK*bps
 	filelen=len(music)
 
