@@ -11,8 +11,9 @@ def streamtoclient(file,offset,socket,stop_event):
 	## Send CHUNKSIZE bytes of file for every second of music
 	filelen=len(file)
 	## Send header
+	header=file[:file.find(b'data')+4]
 	try:
-		socket.sendall(file[:50])
+		socket.sendall(header)
 	except:
 		socket.close()
 		return
