@@ -4,15 +4,19 @@ import argparse
 import threading
 import time
 
+VERSION='0.1.1'
 CHUNK=3
 PRESEND=10
 
 def streamtoclient(file,offset,socket,stop_event):
 	## Send bps bytes of file for every second of music
 	filelen=len(file)
-	## Send header
+	## Send header and change data and file size in header to max
 	hp=file.find(b'data')+4
 	header=file[:hp]
+	header=header[:4]+b'\xff\xff\xff\xff'+header[8:]
+	datasize=4294967295-hp+8
+
 	bps=int.from_bytes(file[28:31],'little')
 	try:
 		socket.sendall(header)
@@ -49,7 +53,7 @@ def main():
 
 	## Version argument
 	if args.version:
-		print("wavradio 0.1.0")
+		print("wavradio "+VERSION)
 		print("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>")
 		print("This is free software: you are free to change and redistribute it.")
 		print("There is NO WARRANTY, to the extent permitted by law.")
