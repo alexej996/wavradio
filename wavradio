@@ -9,101 +9,101 @@ CHUNK=3
 PRESEND=10
 
 def streamtoclient(file,offset,socket,stop_event):
-	## Send bps bytes of file for every second of music
-	filelen=len(file)
-	## Send header and change data and file size in header to max
-	hp=file.find(b'data')+4
-	header=file[:hp]
-	header=header[:4]+b'\xff\xff\xff\xff'+header[8:]
-	datasize=4294967295-hp+8
+    ## Send bps bytes of file for every second of music
+    filelen=len(file)
+    ## Send header and change data and file size in header to max
+    hp=file.find(b'data')+4
+    header=file[:hp]
+    header=header[:4]+b'\xff\xff\xff\xff'+header[8:]
+    datasize=4294967295-hp+8
 
-	bps=int.from_bytes(file[28:31],'little')
-	try:
-		socket.sendall(header)
-		socket.sendall(file[offset:offset+PRESEND*CHUNK*bps])
-	except:
-		socket.close()
-		return
+    bps=int.from_bytes(file[28:31],'little')
+    try:
+        socket.sendall(header)
+        socket.sendall(file[offset:offset+PRESEND*CHUNK*bps])
+    except:
+        socket.close()
+        return
 
-	while not stop_event.is_set():
-		try:
-			socket.sendall(file[offset+PRESEND*CHUNK*bps:offset+(PRESEND+1)*CHUNK*bps])
+    while not stop_event.is_set():
+        try:
+            socket.sendall(file[offset+PRESEND*CHUNK*bps:offset+(PRESEND+1)*CHUNK*bps])
 
-			offset=offset+CHUNK*bps
+            offset=offset+CHUNK*bps
 
-			if offset > filelen:
-				offset = hp
-				socket.sendall(file[offset:offset+PRESEND*CHUNK*bps])
-			else:
-				time.sleep(CHUNK)
-		except:
-			socket.close()
-			return
+            if offset > filelen:
+                offset = hp
+                socket.sendall(file[offset:offset+PRESEND*CHUNK*bps])
+            else:
+                time.sleep(CHUNK)
+        except:
+            socket.close()
+            return
 
-	socket.close()
-	return
+    socket.close()
+    return
 
 def main():
-	parser = argparse.ArgumentParser(description="Simple TCP server for streaming wav files")
-	parser.add_argument("--version", dest="version", help="print version information and exit", action="store_true")
-	parser.add_argument("-f","--file",metavar="FILE",dest="file",help="wav file to read from", default="radio.wav")
-	parser.add_argument("-p","--port",metavar="PORT",type=int,dest="port",help="port to listen on", default="5145")
-	parser.add_argument("--address",metavar="ADDRESS",dest="address",help="IP address to bind to", default="127.0.0.1")
-	args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Simple TCP server for streaming wav files")
+    parser.add_argument("--version", dest="version", help="print version information and exit", action="store_true")
+    parser.add_argument("-f","--file",metavar="FILE",dest="file",help="wav file to read from", default="radio.wav")
+    parser.add_argument("-p","--port",metavar="PORT",type=int,dest="port",help="port to listen on", default="5145")
+    parser.add_argument("--address",metavar="ADDRESS",dest="address",help="IP address to bind to", default="127.0.0.1")
+    args = parser.parse_args()
 
-	## Version argument
-	if args.version:
-		print("wavradio "+VERSION)
-		print("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>")
-		print("This is free software: you are free to change and redistribute it.")
-		print("There is NO WARRANTY, to the extent permitted by law.")
-		exit()
+    ## Version argument
+    if args.version:
+        print("wavradio "+VERSION)
+        print("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>")
+        print("This is free software: you are free to change and redistribute it.")
+        print("There is NO WARRANTY, to the extent permitted by law.")
+        exit()
 
-	## Bind to IP/port and listen
-	s = socket.socket()
-	s.settimeout(CHUNK)
-	s.bind((args.address,args.port))
-	s.listen()
+    ## Bind to IP/port and listen
+    s = socket.socket()
+    s.settimeout(CHUNK)
+    s.bind((args.address,args.port))
+    s.listen()
 
-	## Load the music from file
-	try:
-		f = open(args.file,'rb')
-	except:
-		parser.print_help()
-		print("File not specificed")
-		exit()
+    ## Load the music from file
+    try:
+        f = open(args.file,'rb')
+    except:
+        parser.print_help()
+        print("File not specificed")
+        exit()
 
-	music = f.read()
-	f.close()
-	hp=music.find(b'data')+4
-	bps=int.from_bytes(music[28:31],'little')
-	ofs=hp
-	filelen=len(music)
+    music = f.read()
+    f.close()
+    hp=music.find(b'data')+4
+    bps=int.from_bytes(music[28:31],'little')
+    ofs=hp
+    filelen=len(music)
 
-	## Listen for connections and start thread for each client
-	threads=list()
-	stop_event=threading.Event()
-	while 1:
-		try:
-			client,addr = s.accept()
+    ## Listen for connections and start thread for each client
+    threads=list()
+    stop_event=threading.Event()
+    while 1:
+        try:
+            client,addr = s.accept()
 
-			## Start a new thread for each client
-			thread=threading.Thread(target=streamtoclient,args=(music,ofs,client,stop_event))
-			threads.append(thread)
-			thread.daemon=True
-			thread.start()
+            ## Start a new thread for each client
+            thread=threading.Thread(target=streamtoclient,args=(music,ofs,client,stop_event))
+            threads.append(thread)
+            thread.daemon=True
+            thread.start()
 
-			ofs=(ofs+CHUNK*bps)%filelen
+            ofs=(ofs+CHUNK*bps)%filelen
 
-		except KeyboardInterrupt:
-			for thread in threads:
-				stop_event.set()
-				thread.join(3)
-			s.close()
-			exit()
-		except:
-			ofs=(ofs+CHUNK*bps)%filelen
-			pass
+        except KeyboardInterrupt:
+            for thread in threads:
+                stop_event.set()
+                thread.join(3)
+            s.close()
+            exit()
+        except:
+            ofs=(ofs+CHUNK*bps)%filelen
+            pass
 
 if __name__ == "__main__":
-	main()
+    main()
