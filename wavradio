@@ -9,6 +9,10 @@ CHUNK=3
 PRESEND=10
 
 def streamtoclient(file,offset,socket,stop_event):
+    """
+        Send data to client
+    """
+
     ## Send bps bytes of file for every second of music
     filelen=len(file)
     ## Send header and change data and file size in header to max
@@ -43,13 +47,20 @@ def streamtoclient(file,offset,socket,stop_event):
     socket.close()
     return
 
-def main():
+def parseArgs(parser):
+    """
+       Parse all arguments and return the list of argument values
+    """
+
     parser = argparse.ArgumentParser(description="Simple TCP server for streaming wav files")
     parser.add_argument("--version", dest="version", help="print version information and exit", action="store_true")
     parser.add_argument("-f","--file",metavar="FILE",dest="file",help="wav file to read from", default="radio.wav")
-    parser.add_argument("-p","--port",metavar="PORT",type=int,dest="port",help="port to listen on", default="5145")
+    parser.add_argument("-p","--port",metavar="PORT",type=int,dest="port",help="port to listen on for new client connections", default="5145")
     parser.add_argument("--address",metavar="ADDRESS",dest="address",help="IP address to bind to", default="127.0.0.1")
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def main():
+    args = parseArgs(parser)
 
     ## Version argument
     if args.version:
